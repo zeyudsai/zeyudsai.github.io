@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Scalable Learning of Multivariate Distributions via Coresets — AISTATS 2026" />
+  <title>Scalable Learning of Multivariate Distributions via Coresets</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Design tokens (mirrored from main site) ── */
+    :root {
+      --bg-dark:       #0d1117;
+      --bg-dark2:      #161b22;
+      --bg-light:      #f7f6f3;
+      --text-primary:  #e6e8ed;
+      --text-muted:    #8b949e;
+      --text-dark:     #1c2130;
+      --accent:        #c9a96e;
+      --accent-light:  #f0d9a8;
+      --accent-dim:    rgba(201,169,110,0.15);
+      --border-dark:   rgba(255,255,255,0.08);
+      --nav-h:         64px;
+      --radius:        10px;
+      --radius-sm:     6px;
+      --shadow:        0 4px 24px rgba(0,0,0,0.18);
+      --shadow-lg:     0 12px 48px rgba(0,0,0,0.25);
+      --transition:    0.25s cubic-bezier(0.4,0,0.2,1);
+      --mono:          'JetBrains Mono', monospace;
+      --serif:         'DM Serif Display', serif;
+      --sans:          'DM Sans', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 0 2rem; }
+
+    /* ── Nav ── */
+    #navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: var(--nav-h);
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-dark);
+      display: flex; align-items: center;
+    }
+    .nav-inner {
+      max-width: 860px; margin: 0 auto; padding: 0 2rem;
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      font-family: var(--serif); font-size: 1rem;
+      color: var(--accent); letter-spacing: 0.05em;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .nav-logo svg { width: 13px; height: 13px; opacity: 0.7; }
+    .nav-links { display: flex; gap: 0.2rem; list-style: none; }
+    .nav-links a {
+      font-size: 0.8rem; font-weight: 500;
+      color: rgba(230,232,237,0.6);
+      padding: 0.35rem 0.7rem; border-radius: var(--radius-sm);
+      transition: color var(--transition), background var(--transition);
+    }
+    .nav-links a:hover { color: var(--accent); }
+
+    /* ── Hero ── */
+    header {
+      min-height: 100vh;
+      background: var(--bg-dark);
+      background-image:
+        radial-gradient(ellipse 55% 45% at 50% 40%, rgba(201,169,110,0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 35% 55% at 15% 85%, rgba(60,100,160,0.05) 0%, transparent 60%);
+      display: flex; align-items: center;
+      padding: var(--nav-h) 2rem 5rem;
+      position: relative; overflow: hidden; text-align: center;
+    }
+    header::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.012'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    .hero-inner { max-width: 760px; margin: 0 auto; position: relative; z-index: 1; }
+
+    .venue-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--accent); border: 1px solid rgba(201,169,110,0.3);
+      padding: 6px 16px; border-radius: 100px; background: var(--accent-dim); margin-bottom: 2rem;
+    }
+    .venue-badge::before { content: ''; width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
+
+    h1 {
+      font-family: var(--serif); font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 400;
+      line-height: 1.2; color: var(--text-primary); margin-bottom: 2.5rem;
+    }
+    h1 em { font-style: italic; color: var(--accent); }
+
+    .authors {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 0.35rem 0.15rem; margin-bottom: 1.25rem;
+    }
+    .author-chip {
+      display: inline-flex; align-items: center;
+      font-size: 0.9rem; color: var(--text-muted);
+      padding: 5px 14px; border: 1px solid transparent;
+      border-radius: var(--radius-sm); transition: all var(--transition);
+    }
+    .author-chip:hover {
+      color: var(--text-primary); border-color: var(--border-dark);
+      background: rgba(255,255,255,0.04);
+    }
+    .author-chip.me {
+      color: var(--text-primary); border-color: rgba(201,169,110,0.3);
+      background: var(--accent-dim); font-weight: 500;
+    }
+    .author-chip sup { font-size: 0.6rem; color: var(--accent); font-family: var(--mono); margin-left: 2px; }
+    .author-sep { color: rgba(255,255,255,0.15); align-self: center; }
+
+    .affiliations {
+      font-family: var(--mono); font-size: 0.72rem;
+      color: rgba(139,148,158,0.7); letter-spacing: 0.05em; margin-bottom: 2.5rem; line-height: 2;
+    }
+    .affiliations span { color: var(--accent); margin-right: 4px; }
+
+    .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-family: var(--sans); font-size: 0.875rem; font-weight: 500;
+      padding: 0.65rem 1.4rem; border-radius: var(--radius-sm);
+      transition: all var(--transition); cursor: pointer;
+    }
+    .btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .btn-primary {
+      background: var(--accent); color: var(--bg-dark);
+      border: 1px solid var(--accent); font-weight: 600;
+    }
+    .btn-primary:hover { background: var(--accent-light); border-color: var(--accent-light); transform: translateY(-1px); }
+    .btn-secondary {
+      background: transparent; color: var(--text-muted); border: 1px solid var(--border-dark);
+    }
+    .btn-secondary:hover { color: var(--accent); border-color: rgba(201,169,110,0.35); background: var(--accent-dim); transform: translateY(-1px); }
+    .btn-ghost {
+      background: transparent; color: rgba(139,148,158,0.7); border: 1px solid rgba(255,255,255,0.05);
+    }
+    .btn-ghost:hover { color: var(--text-muted); border-color: var(--border-dark); }
+
+    .hero-scroll {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    }
+    .hero-scroll span { font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-muted); }
+    .scroll-line {
+      width: 1px; height: 36px;
+      background: linear-gradient(to bottom, var(--accent), transparent);
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+    @keyframes scrollPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+    /* ── Sections ── */
+    section { padding: 5rem 0; }
+    .section-dark  { background: var(--bg-dark); }
+    .section-dark2 { background: var(--bg-dark2); }
+
+    .section-tag {
+      display: inline-block; font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.6rem;
+    }
+    h2 {
+      font-family: var(--serif); font-size: clamp(1.7rem, 3vw, 2.3rem); font-weight: 400;
+      color: var(--text-primary); line-height: 1.2; margin-bottom: 2rem;
+    }
+
+    /* ── Abstract ── */
+    .abstract-block {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border-dark);
+      border-left: 3px solid var(--accent);
+      padding: 2rem 2.5rem; border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .abstract-block p {
+      font-size: 0.975rem; color: rgba(230,232,237,0.8); line-height: 1.85; text-align: justify;
+    }
+    .abstract-block strong { color: var(--text-primary); font-weight: 600; }
+
+    /* ── Contributions ── */
+    .contrib-stack { display: flex; flex-direction: column; gap: 1rem; }
+    .contrib-item {
+      display: grid; grid-template-columns: 44px 1fr; gap: 1.25rem;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border-dark);
+      border-radius: var(--radius); padding: 1.5rem 1.75rem; box-shadow: var(--shadow);
+      transition: background var(--transition), border-color var(--transition), transform var(--transition);
+      opacity: 0; transform: translateY(14px);
+    }
+    .contrib-item.visible { opacity: 1; transform: none; }
+    .contrib-item:hover { background: rgba(201,169,110,0.05); border-color: rgba(201,169,110,0.2); transform: translateY(-2px); }
+    .contrib-num { font-family: var(--mono); font-size: 0.65rem; color: var(--accent); letter-spacing: 0.1em; padding-top: 3px; }
+    .contrib-title { font-family: var(--serif); font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+    .contrib-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.75; }
+    .contrib-desc strong { color: var(--text-primary); font-weight: 600; }
+
+    /* ── Method ── */
+    .method-intro { font-size: 0.975rem; color: var(--text-muted); line-height: 1.85; margin-bottom: 1.75rem; }
+    .method-diagram {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border-dark);
+      border-radius: var(--radius); padding: 2rem; box-shadow: var(--shadow); margin: 1.75rem 0;
+    }
+    .diagram-label {
+      font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--text-muted); text-align: center; margin-bottom: 1.5rem;
+    }
+    .diagram-flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+    .diag-node {
+      background: var(--bg-dark2); border: 1px solid var(--border-dark);
+      padding: 0.9rem 1.25rem; border-radius: var(--radius-sm); text-align: center; min-width: 118px;
+    }
+    .diag-node.highlight { border-color: rgba(201,169,110,0.35); background: var(--accent-dim); }
+    .diag-node.result { border-color: rgba(100,160,130,0.35); background: rgba(100,160,130,0.08); }
+    .diag-node-label {
+      font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 4px;
+    }
+    .diag-node-title { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); }
+    .diag-node.highlight .diag-node-title { color: var(--accent-light); }
+    .diag-node.result .diag-node-title { color: #7abfa0; }
+    .diag-arrow { font-size: 18px; color: rgba(255,255,255,0.2); padding: 0 0.6rem; flex-shrink: 0; }
+    .diag-plus { font-size: 16px; color: var(--accent); padding: 0 0.6rem; font-family: var(--mono); flex-shrink: 0; }
+
+    .theorem {
+      background: rgba(201,169,110,0.05); border: 1px solid rgba(201,169,110,0.2);
+      border-top: 2px solid var(--accent); padding: 1.75rem 2rem;
+      border-radius: var(--radius); margin: 1.75rem 0;
+    }
+    .theorem-label {
+      font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem;
+    }
+    .theorem p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.8; margin-bottom: 0.75rem; }
+    .theorem p:last-child { margin-bottom: 0; }
+    .theorem .math {
+      font-family: var(--mono); font-size: 0.8rem; background: var(--bg-dark2);
+      border: 1px solid var(--border-dark); padding: 0.85rem 1.25rem; margin: 0.75rem 0;
+      border-radius: var(--radius-sm); color: var(--accent-light); overflow-x: auto;
+    }
+
+    /* ── Results ── */
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 580px) { .result-grid { grid-template-columns: 1fr; } }
+    .result-card {
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border-dark);
+      border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow);
+      transition: background var(--transition), border-color var(--transition), transform var(--transition);
+      opacity: 0; transform: translateY(14px);
+    }
+    .result-card.visible { opacity: 1; transform: none; }
+    .result-card:hover { background: rgba(201,169,110,0.05); border-color: rgba(201,169,110,0.2); transform: translateY(-2px); }
+    .result-icon { font-size: 1.4rem; margin-bottom: 0.65rem; }
+    .result-card h4 { font-family: var(--serif); font-size: 1rem; color: var(--text-primary); margin-bottom: 0.45rem; }
+    .result-card p { font-size: 0.865rem; color: var(--text-muted); line-height: 1.7; }
+
+    /* ── BibTeX ── */
+    .bibtex-block {
+      background: var(--bg-dark2); border: 1px solid var(--border-dark);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+    }
+    .bibtex-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.7rem 1.25rem; border-bottom: 1px solid var(--border-dark);
+      background: rgba(255,255,255,0.02);
+    }
+    .bibtex-header span { font-family: var(--mono); font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.1em; }
+    .copy-btn {
+      font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--accent); background: none; border: 1px solid rgba(201,169,110,0.3);
+      padding: 4px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition);
+    }
+    .copy-btn:hover { background: var(--accent-dim); }
+    .bibtex-code {
+      padding: 1.25rem 1.5rem; font-family: var(--mono); font-size: 0.78rem;
+      color: #5c6b58; line-height: 1.85; white-space: pre; overflow-x: auto;
+    }
+    .bibtex-code .at  { color: #c06060; }
+    .bibtex-code .key { color: #7abfa0; }
+    .bibtex-code .val { color: var(--accent); }
+
+    /* ── Divider ── */
+    .divider {
+      width: 50px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      margin: 0 auto;
+    }
+
+    /* ── Footer ── */
+    footer { background: var(--bg-dark); border-top: 1px solid var(--border-dark); padding: 1.5rem 2rem; }
+    .footer-inner {
+      max-width: 860px; margin: 0 auto; display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: var(--text-muted); font-family: var(--mono);
+    }
+    footer a { transition: color var(--transition); }
+    footer a:hover { color: var(--accent); }
+
+    /* ── Animations ── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+    .fade-up { opacity: 0; animation: fadeUp 0.65s cubic-bezier(0.22,1,0.36,1) forwards; }
+    .fade-up:nth-child(1) { animation-delay: 0.1s; }
+    .fade-up:nth-child(2) { animation-delay: 0.22s; }
+    .fade-up:nth-child(3) { animation-delay: 0.34s; }
+    .fade-up:nth-child(4) { animation-delay: 0.46s; }
+    .fade-up:nth-child(5) { animation-delay: 0.58s; }
+
+    @media (max-width: 540px) {
+      .nav-links { display: none; }
+      header { padding-top: calc(var(--nav-h) + 1rem); }
+      .abstract-block { padding: 1.5rem; }
+      .contrib-item { grid-template-columns: 1fr; }
+      .footer-inner { flex-direction: column; gap: 0.3rem; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="nav-inner">
+    <a class="nav-logo" href="https://zeyudsai.github.io">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.293 1.293a1 1 0 011.414 0l6 6A1 1 0 0115 8v6a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3H6v3a1 1 0 01-1 1H2a1 1 0 01-1-1V8a1 1 0 01.293-.707l6-6z"/></svg>
+      Zeyu Ding
+    </a>
+    <ul class="nav-links">
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#contributions">Contributions</a></li>
+      <li><a href="#method">Method</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#bibtex">BibTeX</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header>
+  <div class="hero-inner">
+    <div class="fade-up">
+      <div class="venue-badge">AISTATS 2026 · Tangier, Morocco · PMLR Vol. 300</div>
+    </div>
+    <div class="fade-up">
+      <h1>Scalable Learning of <em>Multivariate Distributions</em> via Coresets</h1>
+    </div>
+    <div class="fade-up">
+      <div class="authors">
+        <a class="author-chip me" href="https://zeyudsai.github.io">Zeyu Ding<sup>1,2</sup></a>
+        <span class="author-sep">·</span>
+        <a class="author-chip" href="https://biometrie.statistik.tu-dortmund.de/lehrstuhl/team/prof-dr-katja-ickstadt/">Katja Ickstadt<sup>1,2</sup></a>
+        <span class="author-sep">·</span>
+        <a class="author-chip" href="https://www.scc.kit.edu/personen/nadja.klein.php">Nadja Klein<sup>3</sup></a>
+        <span class="author-sep">·</span>
+        <a class="author-chip" href="https://biometrie.statistik.tu-dortmund.de/lehrstuhl/team/alexander-munteanu/">Alexander Munteanu<sup>1</sup></a>
+        <span class="author-sep">·</span>
+        <a class="author-chip" href="https://biometrie.statistik.tu-dortmund.de/lehrstuhl/team/simon-omlor/">Simon Omlor<sup>1</sup></a>
+      </div>
+    </div>
+    <div class="fade-up">
+      <div class="affiliations">
+        <span>1</span>TU Dortmund University &nbsp;&nbsp;
+        <span>2</span>Lamarr Institute for ML &amp; AI &nbsp;&nbsp;
+        <span>3</span>Karlsruhe Institute of Technology
+      </div>
+    </div>
+    <div class="fade-up">
+      <div class="actions">
+        <a class="btn btn-primary" href="https://github.com/zeyudsai/mctmcoreset" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          Code
+        </a>
+        <a class="btn btn-secondary" href="#" id="arxiv-btn" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+          Paper — ArXiv coming soon
+        </a>
+        <a class="btn btn-ghost" href="https://zeyudsai.github.io" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+          Author's Homepage
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="hero-scroll"><span>scroll</span><div class="scroll-line"></div></div>
+</header>
+
+<section id="abstract" class="section-dark2">
+  <div class="container">
+    <span class="section-tag">Abstract</span>
+    <div class="abstract-block">
+      <p>Efficient and scalable non-parametric or semi-parametric regression analysis and density estimation are of crucial importance to the fields of statistics and machine learning. However, available methods are limited in their ability to handle large-scale data. We address this issue by developing a novel coreset construction for <strong>multivariate conditional transformation models (MCTMs)</strong> to enhance their scalability and training efficiency. To the best of our knowledge, these are the first coresets for semi-parametric distributional models. Our approach yields substantial data reduction via importance sampling. It ensures with high probability that the log-likelihood remains within multiplicative error bounds of (1 ± ε) and thereby maintains statistical model accuracy. Compared to conventional full-parametric models, where coresets have been incorporated before, our semi-parametric approach exhibits enhanced adaptability, particularly in scenarios where complex distributions and non-linear relationships are present, but not fully understood. To address numerical problems associated with normalizing logarithmic terms, we follow a geometric approximation based on the convex hull of input data. This ensures feasible, stable, and accurate inference in scenarios involving large amounts of data. Numerical experiments demonstrate substantially improved computational efficiency when handling large and complex datasets, thus laying the foundation for a broad range of applications within the statistics and machine learning communities.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider" style="margin:0;"></div>
+
+<section id="contributions" class="section-dark">
+  <div class="container">
+    <span class="section-tag">Contributions</span>
+    <h2>What we introduce</h2>
+    <div class="contrib-stack">
+      <div class="contrib-item">
+        <div class="contrib-num">01</div>
+        <div>
+          <div class="contrib-title">First Coresets for MCTMs</div>
+          <p class="contrib-desc">We introduce the first coreset construction framework for highly flexible <strong>Multivariate Conditional Transformation Models (MCTMs)</strong>, bridging the gap between semi-parametric modeling for multivariate distributions and efficient data reduction techniques.</p>
+        </div>
+      </div>
+      <div class="contrib-item">
+        <div class="contrib-num">02</div>
+        <div>
+          <div class="contrib-title">Convex Hull Stabilization for Logarithmic Terms</div>
+          <p class="contrib-desc">Standard sensitivity frameworks fail on the unstable, unbounded logarithmic terms in the MCTM loss. We solve this by geometrically approximating the <strong>convex hull of transformation derivatives</strong> to avoid extreme directions, paired with ℓ₂ leverage scores for the quadratic part.</p>
+        </div>
+      </div>
+      <div class="contrib-item">
+        <div class="contrib-num">03</div>
+        <div>
+          <div class="contrib-title">Provable Scalability on Real-World Data</div>
+          <p class="contrib-desc">We demonstrate significant computational speedups on complex, large-scale datasets (Covertype, Equity Returns), scaling high-dimensional joint distribution models while rigorously maintaining <strong>(1 ± ε) log-likelihood approximation guarantees</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider" style="margin:0;"></div>
+
+<section id="method" class="section-dark2">
+  <div class="container">
+    <span class="section-tag">Method</span>
+    <h2>The Hybrid ℓ₂-Hull Strategy</h2>
+    <p class="method-intro">The core challenge of applying coresets to MCTMs is that the negative log-likelihood contains both tractable quadratic terms and highly unstable logarithmic terms with asymptotes at zero. Standard sensitivity sampling fails for the latter because the sensitivities are unbounded. Our hybrid approach separates these concerns: we use ℓ₂ leverage scores to bound the quadratic part, and a convex hull approximation on the derivative space to prevent the optimizer from exploring infeasible extreme directions.</p>
+    <div class="method-diagram">
+      <div class="diagram-label">Coreset Construction Pipeline</div>
+      <div class="diagram-flow">
+        <div class="diag-node">
+          <div class="diag-node-label">Input</div>
+          <div class="diag-node-title">Full Data 𝒟</div>
+        </div>
+        <div class="diag-arrow">→</div>
+        <div class="diag-node highlight">
+          <div class="diag-node-label">Stabilize Log Term</div>
+          <div class="diag-node-title">Convex Hull a'(y)</div>
+        </div>
+        <div class="diag-plus">+</div>
+        <div class="diag-node highlight">
+          <div class="diag-node-label">Bound Quadratic Term</div>
+          <div class="diag-node-title">ℓ₂ Leverage Sampling</div>
+        </div>
+        <div class="diag-arrow">→</div>
+        <div class="diag-node result">
+          <div class="diag-node-label">Output</div>
+          <div class="diag-node-title">Final Coreset ℂ</div>
+        </div>
+      </div>
+    </div>
+    <div class="theorem">
+      <div class="theorem-label">Main Theorem — Loss Approximation</div>
+      <p>Assume a sample 𝒮 drawn via the ℓ₂-Hull method. With high probability, for any parameters (ϑ, λ) within the restricted domain D(η) = {(ϑ, λ) | ∀(i,j): ⟨ϑⱼ, a'ᵢⱼ⟩ > η}:</p>
+      <div class="math">|f(A, ϑ, λ) − f(A(𝒮), ϑ, λ, w)| ≤ ε · f(A, ϑ, λ)</div>
+      <p>The framework yields a coreset size bounded by 𝒪(J²d² ln³(cdJ)c⁶ / ε²), practically decoupling optimization time from n while preserving statistical accuracy.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider" style="margin:0;"></div>
+
+<section id="results" class="section-dark">
+  <div class="container">
+    <span class="section-tag">Empirical Results</span>
+    <h2>Key Takeaways</h2>
+    <div class="result-grid">
+      <div class="result-card">
+        <div class="result-icon">🎯</div>
+        <h4>High Approximation Accuracy</h4>
+        <p>The ℓ₂-Hull method achieves log-likelihood ratios near 1.0 and maintains remarkably tight parameter distances compared to the full dataset, consistently outperforming uniform subsampling.</p>
+      </div>
+      <div class="result-card">
+        <div class="result-icon">⚡</div>
+        <h4>Massive Computational Speedup</h4>
+        <p>Enables fitting of complex 10-to-20 dimensional joint distributions on datasets with hundreds of thousands of observations (Covertype) in seconds rather than hours, circumventing hardware limitations.</p>
+      </div>
+      <div class="result-card">
+        <div class="result-icon">🌌</div>
+        <h4>Robustness to Complex Structures</h4>
+        <p>Reliably captures 14 different complex dependency scenarios — including heavy-tailed distributions, multimodality, and non-linear correlations — where baseline sampling methods miss critical boundary points.</p>
+      </div>
+      <div class="result-card">
+        <div class="result-icon">🛡️</div>
+        <h4>Guaranteed Numerical Stability</h4>
+        <p>By explicitly integrating extreme geometric boundaries via the convex hull, the algorithm ensures stable parameter updates and avoids the severe optimization failures seen in pure leverage-score sampling.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider" style="margin:0;"></div>
+
+<section id="bibtex" class="section-dark2">
+  <div class="container">
+    <span class="section-tag">Citation</span>
+    <h2>BibTeX</h2>
+    <div class="bibtex-block">
+      <div class="bibtex-header">
+        <span>bibtex</span>
+        <button class="copy-btn" onclick="copyBibtex()">Copy</button>
+      </div>
+      <div class="bibtex-code"><span class="at">@inproceedings</span>{<span class="key">ding2026mctmcoreset</span>,
+  <span class="key">title</span>     = {<span class="val">Scalable Learning of Multivariate Distributions via Coresets</span>},
+  <span class="key">author</span>    = {<span class="val">Ding, Zeyu and Ickstadt, Katja and Klein, Nadja and Munteanu, Alexander and Omlor, Simon</span>},
+  <span class="key">booktitle</span> = {<span class="val">Proceedings of the 29th International Conference on
+               Artificial Intelligence and Statistics (AISTATS)</span>},
+  <span class="key">series</span>    = {<span class="val">Proceedings of Machine Learning Research</span>},
+  <span class="key">volume</span>    = {<span class="val">300</span>},
+  <span class="key">year</span>      = {<span class="val">2026</span>},
+  <span class="key">publisher</span> = {<span class="val">PMLR</span>}
+}</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <span>© 2026 <a href="https://zeyudsai.github.io">Zeyu Ding</a> · TU Dortmund &amp; Lamarr Institute</span>
+    <span><a href="mailto:zeyu.ding@tu-dortmund.de">zeyu.ding@tu-dortmund.de</a></span>
+  </div>
+</footer>
+
+<script>
+  // Scroll-triggered card animations
+  const fadeEls = document.querySelectorAll('.contrib-item, .result-card');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('visible'), i * 80);
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  fadeEls.forEach(el => obs.observe(el));
+
+  // BibTeX copy
+  function copyBibtex() {
+    const raw = `@inproceedings{ding2026mctmcoreset,
+  title     = {Scalable Learning of Multivariate Distributions via Coresets},
+  author    = {Ding, Zeyu and Ickstadt, Katja and Klein, Nadja and Munteanu, Alexander and Omlor, Simon},
+  booktitle = {Proceedings of the 29th International Conference on Artificial Intelligence and Statistics (AISTATS)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {300},
+  year      = {2026},
+  publisher = {PMLR}
+}`;
+    navigator.clipboard.writeText(raw).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      btn.style.color = '#7abfa0';
+      btn.style.borderColor = 'rgba(122,191,160,0.4)';
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
